@@ -2,13 +2,13 @@
   "name": "notevil",
   "version": "1.1.0",
   "description": "Evalulate javascript like the built-in eval() method but safely",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
     "test": "tape test/*.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mmckegg/notevil"
+    "url": "https://github.com/Cerberuser/notevil-ts"
   },
   "keywords": [
     "eval",
@@ -18,15 +18,21 @@
     "expression"
   ],
   "author": "Matt McKegg",
+  "contributors": [
+    "Cerberuser <k.bagrov@g.nsu.ru> (https://github.com/Cerberuser)"
+  ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/mmckegg/notevil/issues"
+    "url": "https://github.com/Cerberuser/notevil-ts/issues"
   },
   "dependencies": {
-    "esprima": "~1.0",
-    "hoister": "~0.0"
+    "esprima": "4.0.1",
+    "hoister": "0.0.2"
   },
   "devDependencies": {
-    "tape": "*"
+    "@types/esprima": "^4.0.2",
+    "tape": "*",
+    "tslint": "^5.11.0",
+    "typescript": "^3.0.3"
   }
 }
