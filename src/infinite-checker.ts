@@ -1,17 +1,17 @@
-module.exports = InfiniteChecker
+export class InfiniteChecker {
 
-function InfiniteChecker(maxIterations){
-  if (this instanceof InfiniteChecker){
-    this.maxIterations = maxIterations
-    this.count = 0
-  } else {
-    return new InfiniteChecker(maxIterations)
+  public maxIterations;
+  public count;
+
+  constructor(maxIterations) {
+    this.maxIterations = maxIterations;
+    this.count = 0;
   }
-}
 
-InfiniteChecker.prototype.check = function(){
-  this.count += 1
-  if (this.count > this.maxIterations){
-    throw new Error('Infinite loop detected - reached max iterations')
+  public check() {
+    this.count += 1;
+    if (this.count > this.maxIterations) {
+      throw new Error("Infinite loop detected - reached max iterations");
+    }
   }
 }
