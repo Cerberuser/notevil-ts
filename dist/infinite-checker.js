@@ -8,9 +8,10 @@ var InfiniteChecker = /** @class */ (function () {
     InfiniteChecker.prototype.check = function () {
         this.count += 1;
         if (this.count > this.maxIterations) {
-            throw new Error('Infinite loop detected - reached max iterations');
+            throw new Error("Infinite loop detected - reached max iterations");
         }
     };
     return InfiniteChecker;
 }());
 exports.InfiniteChecker = InfiniteChecker;
+//# sourceMappingURL=infinite-checker.js.map

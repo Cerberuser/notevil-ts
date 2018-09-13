@@ -222,7 +222,7 @@ function evaluateAst(tree, context) {
                 }
                 catch (error) {
                     enterBlock();
-                    var catchClause = node.handlers[0];
+                    var catchClause = node.handler;
                     if (catchClause) {
                         blockContext[catchClause.param.name] = error;
                         walk(catchClause.body);
@@ -534,3 +534,4 @@ var ReturnValue = /** @class */ (function () {
     }
     return ReturnValue;
 }());
+//# sourceMappingURL=index.js.map

@@ -5,7 +5,7 @@ var immutable = { string: "String", boolean: "Boolean", number: "Number" };
 // let primitives = names.map(getGlobal);
 var primitives = [Object, String, Boolean, Number, RegExp, Date, Array];
 var protos = primitives.map(getProto);
-var protoReplacements = {};
+// const protoReplacements = {};
 var Primitives = /** @class */ (function () {
     function Primitives(context) {
         this.context = context;
@@ -102,3 +102,4 @@ function wrap(prim) {
     result.wrapped = true;
     return result;
 }
+//# sourceMappingURL=primitives.js.map

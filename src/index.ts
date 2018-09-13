@@ -228,7 +228,7 @@ function evaluateAst(tree, context) {
           walk(node.block);
         } catch (error) {
           enterBlock();
-          const catchClause = node.handlers[0];
+          const catchClause = node.handler;
           if (catchClause) {
             blockContext[catchClause.param.name] = error;
             walk(catchClause.body);
