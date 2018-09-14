@@ -4,6 +4,10 @@
         "tslint:recommended"
     ],
     "jsRules": {},
-    "rules": {},
+    "rules": {
+        "no-bitwise": false,
+        "no-console": false,
+        "new-parens": false
+    },
     "rulesDirectory": []
 }

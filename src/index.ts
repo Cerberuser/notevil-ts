@@ -15,14 +15,14 @@ export function safeEval(src, parentContext) {
 // create a 'Function' constructor for a controlled environment
 export function FunctionFactory(parentContext?) {
   const context = Object.create(parentContext || {});
-  return function Function() {
+  return function Func() {
     // normalize arguments array
     let args = Array.prototype.slice.call(arguments);
     let src = args.slice(-1)[0];
     args = args.slice(0, -1);
-    if (typeof src === 'string') {
-      //HACK: esprima doesn't like returns outside functions
-      src = (parse('function a(){' + src + '}').body[0] as any).body;
+    if (typeof src === "string") {
+      // HACK: esprima doesn't like returns outside functions
+      src = (parse("function a(){" + src + "}").body[0] as any).body;
     }
     const tree = prepareAst(src);
     return getFunction(tree, args, context);
@@ -33,7 +33,7 @@ export const Function = FunctionFactory();
 
 // takes an AST or js source and returns an AST
 function prepareAst(src) {
-  const tree = (typeof src === 'string') ? parse(src) : src;
+  const tree = (typeof src === "string") ? parse(src) : src;
   return hoist(tree);
 }
 
@@ -50,10 +50,9 @@ function evaluateAst(tree, context) {
 
 // recursively walk every node in an array
   function walkAll(nodes) {
-    let result = undefined;
-    for (let i = 0; i < nodes.length; i++) {
-      const childNode = nodes[i];
-      if (childNode.type === 'EmptyStatement') continue;
+    let result;
+    for (const childNode of nodes) {
+      if (childNode.type === "EmptyStatement") { continue; }
       result = walk(childNode);
       if (result instanceof ReturnValue) {
         return result;
@@ -64,49 +63,49 @@ function evaluateAst(tree, context) {
 
 // recursively evaluate the node of an AST
   function walk(node) {
-    if (!node) return;
+    if (!node) { return; }
     switch (node.type) {
 
-      case 'Program': {
+      case "Program": {
         return walkAll(node.body);
       }
-      case 'BlockStatement': {
+      case "BlockStatement": {
         enterBlock();
         const result = walkAll(node.body);
         leaveBlock();
         return result;
       }
-      case 'FunctionDeclaration': {
+      case "FunctionDeclaration": {
         const params = node.params.map(getName);
         const value = getFunction(node.body, params, blockContext);
         return context[node.id.name] = value;
       }
-      case 'FunctionExpression': {
+      case "FunctionExpression": {
         const params = node.params.map(getName);
         return getFunction(node.body, params, blockContext);
       }
-      case 'ReturnStatement': {
+      case "ReturnStatement": {
         const value = walk(node.argument);
-        return new ReturnValue('return', value);
+        return new ReturnValue("return", value);
       }
-      case 'BreakStatement': {
-        return new ReturnValue('break');
+      case "BreakStatement": {
+        return new ReturnValue("break");
       }
-      case 'ContinueStatement': {
-        return new ReturnValue('continue');
+      case "ContinueStatement": {
+        return new ReturnValue("continue");
       }
-      case 'ExpressionStatement': {
+      case "ExpressionStatement": {
         return walk(node.expression);
       }
-      case 'AssignmentExpression': {
+      case "AssignmentExpression": {
         return setValue(blockContext, node.left, node.right, node.operator);
       }
-      case 'UpdateExpression': {
+      case "UpdateExpression": {
         return setValue(blockContext, node.argument, null, node.operator);
       }
-      case 'VariableDeclaration':
-        node.declarations.forEach(function (declaration) {
-          const target = node.kind === 'let' ? blockContext : context;
+      case "VariableDeclaration":
+        node.declarations.forEach((declaration) => {
+          const target = node.kind === "let" ? blockContext : context;
           if (declaration.init) {
             target[declaration.id.name] = walk(declaration.init);
           } else {
@@ -115,11 +114,11 @@ function evaluateAst(tree, context) {
         });
         break;
 
-      case 'SwitchStatement': {
+      case "SwitchStatement": {
         let defaultHandler = null;
         let matched = false;
         const value = walk(node.discriminant);
-        let result = undefined;
+        let result;
 
         enterBlock();
 
@@ -134,7 +133,7 @@ function evaluateAst(tree, context) {
             if (matched) {
               const r = walkAll(node.cases[i].consequent);
               if (r instanceof ReturnValue) { // break out
-                if (r.type == 'break') break;
+                if (r.type === "break") { break; }
                 result = r;
               }
             }
@@ -152,16 +151,16 @@ function evaluateAst(tree, context) {
         leaveBlock();
         return result;
       }
-      case 'IfStatement': {
+      case "IfStatement": {
         if (walk(node.test)) {
           return walk(node.consequent);
         } else if (node.alternate) {
           return walk(node.alternate);
         }
       }
-      case 'ForStatement': {
+      case "ForStatement": {
         const infinite = new InfiniteChecker(maxIterations);
-        let result = undefined;
+        let result;
 
         enterBlock(); // allow lets on delarations
         for (walk(node.init); walk(node.test); walk(node.update)) {
@@ -169,8 +168,8 @@ function evaluateAst(tree, context) {
 
           // handle early return, continue and break
           if (r instanceof ReturnValue) {
-            if (r.type == 'continue') continue;
-            if (r.type == 'break') break;
+            if (r.type === "continue") { continue; }
+            if (r.type === "break") { break; }
             result = r;
             break;
           }
@@ -180,9 +179,9 @@ function evaluateAst(tree, context) {
         leaveBlock();
         return result;
       }
-      case 'ForInStatement': {
+      case "ForInStatement": {
         const infinite = new InfiniteChecker(maxIterations);
-        let result = undefined;
+        let result;
 
         const value = walk(node.right);
         let property = node.left;
@@ -190,22 +189,25 @@ function evaluateAst(tree, context) {
         let target = context;
         enterBlock();
 
-        if (property.type == 'VariableDeclaration') {
+        if (property.type === "VariableDeclaration") {
           walk(property);
           property = property.declarations[0].id;
-          if (property.kind === 'let') {
+          if (property.kind === "let") {
             target = blockContext;
           }
         }
 
-        for (let key in value) {
-          setValue(target, property, {type: 'Literal', value: key});
+        for (const key in value) {
+          if (!value.hasOwnPropertyKey(key)) {
+            continue;
+          }
+          setValue(target, property, {type: "Literal", value: key});
           const r = walk(node.body);
 
           // handle early return, continue and break
           if (r instanceof ReturnValue) {
-            if (r.type == 'continue') continue;
-            if (r.type == 'break') break;
+            if (r.type === "continue") { continue; }
+            if (r.type === "break") { break; }
             result = r;
             break;
           }
@@ -216,14 +218,15 @@ function evaluateAst(tree, context) {
 
         return result;
       }
-      case 'WhileStatement':
+      case "WhileStatement": {
         const infinite = new InfiniteChecker(maxIterations);
         while (walk(node.test)) {
           walk(node.body);
           infinite.check();
         }
         break;
-      case 'TryStatement':
+      }
+      case "TryStatement":
         try {
           walk(node.block);
         } catch (error) {
@@ -240,10 +243,10 @@ function evaluateAst(tree, context) {
           }
         }
         break;
-      case 'Literal':
+      case "Literal":
         return node.value;
-      case 'UnaryExpression': {
-        if (node.operator === 'delete' && node.argument.type === 'MemberExpression') {
+      case "UnaryExpression": {
+        if (node.operator === "delete" && node.argument.type === "MemberExpression") {
           const arg = node.argument;
           const parent = walk(arg.object);
           const prop = arg.computed ? walk(arg.property) : arg.property.name;
@@ -252,121 +255,121 @@ function evaluateAst(tree, context) {
         } else {
           const val = walk(node.argument);
           switch (node.operator) {
-            case '+':
+            case "+":
               return +val;
-            case '-':
+            case "-":
               return -val;
-            case '~':
+            case "~":
               return ~val;
-            case '!':
+            case "!":
               return !val;
-            case 'typeof':
+            case "typeof":
               return typeof val;
             default:
               return unsupportedExpression(node);
           }
         }
       }
-      case 'ArrayExpression': {
-        const obj: Array<any> = blockContext['Array']();
-        for (let i = 0; i < node.elements.length; i++) {
-          obj.push(walk(node.elements[i]));
+      case "ArrayExpression": {
+        const obj: any[] = blockContext.Array();
+        for (const element of node.elements) {
+          obj.push(walk(element));
         }
         return obj;
       }
-      case 'ObjectExpression': {
-        const obj: object = blockContext['Object']();
-        for (let i = 0; i < node.properties.length; i++) {
-          const prop = node.properties[i];
+      case "ObjectExpression": {
+        const obj: object = blockContext.Object();
+        for (const prop of node.properties) {
           const value = (prop.value === null) ? prop.value : walk(prop.value);
           obj[prop.key.value || prop.key.name] = value;
         }
         return obj;
       }
-      case 'NewExpression': {
-        const args = node.arguments.map(function (arg) {
+      case "NewExpression": {
+        const args = node.arguments.map((arg) => {
           return walk(arg);
         });
         const target = walk(node.callee);
         return primitives.applyNew(target, args);
       }
-      case 'BinaryExpression': {
+      case "BinaryExpression": {
         const l = walk(node.left);
         const r = walk(node.right);
         switch (node.operator) {
-          case '==':
+          case "==":
             return l === r;
-          case '===':
+          case "===":
             return l === r;
-          case '!=':
+          case "!=":
+            // tslint:disable-next-line:triple-equals
             return l != r;
-          case '!==':
+          case "!==":
             return l !== r;
-          case '+':
+          case "+":
             return l + r;
-          case '-':
+          case "-":
             return l - r;
-          case '*':
+          case "*":
             return l * r;
-          case '/':
+          case "/":
             return l / r;
-          case '%':
+          case "%":
             return l % r;
-          case '<':
+          case "<":
             return l < r;
-          case '<=':
+          case "<=":
             return l <= r;
-          case '>':
+          case ">":
             return l > r;
-          case '>=':
+          case ">=":
             return l >= r;
-          case '|':
+          case "|":
             return l | r;
-          case '&':
+          case "&":
             return l & r;
-          case '^':
+          case "^":
             return l ^ r;
-          case 'instanceof':
+          case "instanceof":
             return l instanceof r;
           default:
             return unsupportedExpression(node);
         }
       }
-      case 'LogicalExpression': {
+      case "LogicalExpression": {
         switch (node.operator) {
-          case '&&':
+          case "&&":
             return walk(node.left) && walk(node.right);
-          case '||':
+          case "||":
             return walk(node.left) || walk(node.right);
           default:
             return unsupportedExpression(node);
         }
       }
-      case 'ThisExpression': {
-        return blockContext['this'];
+      case "ThisExpression": {
+        return blockContext.this;
       }
-      case 'Identifier': {
-        if (node.name === 'undefined') {
+      case "Identifier": {
+        if (node.name === "undefined") {
           return undefined;
         } else if (hasProperty(blockContext, node.name, primitives)) {
           return finalValue(blockContext[node.name]);
         } else {
-          throw new ReferenceError(node.name + ' is not defined');
+          throw new ReferenceError(node.name + " is not defined");
         }
       }
-      case 'CallExpression': {
-        let args = node.arguments.map(function (arg) {
+      case "CallExpression": {
+        const args = node.arguments.map((arg) => {
           return walk(arg);
         });
         let object = null;
         const target = walk(node.callee);
 
-        if (node.callee.type === 'MemberExpression') {
+        if (node.callee.type === "MemberExpression") {
           object = walk(node.callee.object);
         }
         return target.apply(object, args);
       }
-      case 'MemberExpression':
+      case "MemberExpression": {
         let obj = walk(node.object);
         let prop;
         if (node.computed) {
@@ -376,12 +379,12 @@ function evaluateAst(tree, context) {
         }
         obj = primitives.getPropertyObject(obj, prop);
         return checkValue(obj[prop]);
-
-      case 'ConditionalExpression':
+      }
+      case "ConditionalExpression": {
         const val = walk(node.test);
         return val ? walk(node.consequent) : walk(node.alternate);
-
-      case 'EmptyStatement':
+      }
+      case "EmptyStatement":
         return;
 
       default:
@@ -410,11 +413,11 @@ function evaluateAst(tree, context) {
   function setValue(object, left, right, operator?) {
     let name = null;
 
-    if (left.type === 'Identifier') {
+    if (left.type === "Identifier") {
       name = left.name;
       // handle parent context shadowing
       object = objectForKey(object, name, primitives);
-    } else if (left.type === 'MemberExpression') {
+    } else if (left.type === "MemberExpression") {
       if (left.computed) {
         name = walk(left.property);
       } else {
@@ -428,15 +431,15 @@ function evaluateAst(tree, context) {
       switch (operator) {
         case undefined:
           return object[name] = walk(right);
-        case '=':
+        case "=":
           return object[name] = walk(right);
-        case '+=':
+        case "+=":
           return object[name] += walk(right);
-        case '-=':
+        case "-=":
           return object[name] -= walk(right);
-        case '++':
+        case "++":
           return object[name]++;
-        case '--':
+        case "--":
           return object[name]--;
       }
     }
@@ -448,7 +451,7 @@ function evaluateAst(tree, context) {
 // when an unsupported expression is encountered, throw an error
 function unsupportedExpression(node) {
   console.error(node);
-  const err: Error & { node?: any } = new Error('Unsupported expression: ' + node.type);
+  const err: Error & { node?: any } = new Error("Unsupported expression: " + node.type);
   err.node = node;
   throw err;
 }
@@ -483,10 +486,9 @@ function propertyIsEnumerable(object, key) {
   return Object.prototype.propertyIsEnumerable.call(object, key);
 }
 
-
 // determine if we have write access to a property
 function canSetProperty(object, property, primitives) {
-  if (property === '__proto__' || primitives.isPrimitive(object)) {
+  if (property === "__proto__" || primitives.isPrimitive(object)) {
     return false;
   } else if (object != null) {
 
@@ -507,18 +509,17 @@ function canSetProperty(object, property, primitives) {
 
 // generate a function with specified context
 function getFunction(body, params, parentContext) {
-  return function () {
+  return function() {
     const context = Object.create(parentContext);
-    // TODO: how to check for it?..
-    // if (this == global) {
-    //     context['this'] = null;
-    // } else {
-    context['this'] = this;
-    // }
+    if (this === global) {
+        context.this = null;
+    } else {
+        context.this = this;
+    }
     // normalize arguments array
     const args = Array.prototype.slice.call(arguments);
-    context['arguments'] = arguments;
-    args.forEach(function (arg, idx) {
+    context.arguments = arguments;
+    args.forEach((arg, idx) => {
       const param = params[idx];
       if (param) {
         context[param] = arg;
