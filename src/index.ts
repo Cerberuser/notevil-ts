@@ -16,7 +16,7 @@ export function safeEval(src, parentContext) {
 export function FunctionFactory(parentContext?) {
   const context = Object.create(parentContext || {});
   // TODO: make this args generic, possibly (to pass into getFunction)?
-  return (...args: any[]) => {
+  return function(...args: any[]) {
     let src = args.slice(-1)[0];
     args = args.slice(0, -1);
     if (typeof src === "string") {
@@ -79,7 +79,9 @@ function evaluateAst(tree, context) {
         const value = getFunction(node.body, params, blockContext);
         return context[node.id.name] = value;
       }
-      case "FunctionExpression": {
+      case "FunctionExpression":
+      case "ArrowFunctionExpression": {
+        // TODO: context is different!!!
         const params = node.params.map(getName);
         return getFunction(node.body, params, blockContext);
       }
@@ -508,7 +510,7 @@ function canSetProperty(object, property, primitives) {
 
 // generate a function with specified context
 function getFunction(body, params, parentContext) {
-  return (...args: any[]) => {
+  return function(...args: any[]) {
     const context = Object.create(parentContext);
     if (this === global) {
         context.this = null;

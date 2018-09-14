@@ -83,7 +83,8 @@ function evaluateAst(tree, context) {
                 var value = getFunction(node.body, params, blockContext);
                 return context[node.id.name] = value;
             }
-            case "FunctionExpression": {
+            case "FunctionExpression":
+            case "ArrowFunctionExpression": {
                 var params = node.params.map(getName);
                 return getFunction(node.body, params, blockContext);
             }
@@ -511,18 +512,17 @@ function canSetProperty(object, property, primitives) {
 }
 // generate a function with specified context
 function getFunction(body, params, parentContext) {
-    var _this = this;
     return function () {
         var args = [];
         for (var _i = 0; _i < arguments.length; _i++) {
             args[_i] = arguments[_i];
         }
         var context = Object.create(parentContext);
-        if (_this === global) {
+        if (this === global) {
             context.this = null;
         }
         else {
-            context.this = _this;
+            context.this = this;
         }
         context.arguments = args;
         args.forEach(function (arg, idx) {
