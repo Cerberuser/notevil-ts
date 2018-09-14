@@ -15,9 +15,8 @@ export function safeEval(src, parentContext) {
 // create a 'Function' constructor for a controlled environment
 export function FunctionFactory(parentContext?) {
   const context = Object.create(parentContext || {});
-  return function Function() {
-    // normalize arguments array
-    let args = Array.prototype.slice.call(arguments);
+  // TODO: make this args generic, possibly (to pass into getFunction)?
+  return (...args: any[]) => {
     let src = args.slice(-1)[0];
     args = args.slice(0, -1);
     if (typeof src === "string") {
@@ -509,16 +508,14 @@ function canSetProperty(object, property, primitives) {
 
 // generate a function with specified context
 function getFunction(body, params, parentContext) {
-  return function() {
+  return (...args: any[]) => {
     const context = Object.create(parentContext);
     if (this === global) {
         context.this = null;
     } else {
         context.this = this;
     }
-    // normalize arguments array
-    const args = Array.prototype.slice.call(arguments);
-    context.arguments = arguments;
+    context.arguments = args;
     args.forEach((arg, idx) => {
       const param = params[idx];
       if (param) {
