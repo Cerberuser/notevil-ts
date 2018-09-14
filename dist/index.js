@@ -23,19 +23,19 @@ function FunctionFactory(parentContext) {
         var args = Array.prototype.slice.call(arguments);
         var src = args.slice(-1)[0];
         args = args.slice(0, -1);
-        if (typeof src === 'string') {
-            //HACK: esprima doesn't like returns outside functions
-            src = esprima_1.parseScript('function a(){' + src + '}').body[0].body;
+        if (typeof src === "string") {
+            // HACK: esprima doesn't like returns outside functions
+            src = esprima_1.parseScript("function a(){" + src + "}").body[0].body;
         }
         var tree = prepareAst(src);
         return getFunction(tree, args, context);
     };
 }
 exports.FunctionFactory = FunctionFactory;
-exports.Function = FunctionFactory();
+exports.SafeFunction = FunctionFactory();
 // takes an AST or js source and returns an AST
 function prepareAst(src) {
-    var tree = (typeof src === 'string') ? esprima_1.parseScript(src) : src;
+    var tree = (typeof src === "string") ? esprima_1.parseScript(src) : src;
     return hoister_1.default(tree);
 }
 // evaluate an AST in the given context
@@ -47,11 +47,12 @@ function evaluateAst(tree, context) {
     return walk(tree);
     // recursively walk every node in an array
     function walkAll(nodes) {
-        var result = undefined;
-        for (var i = 0; i < nodes.length; i++) {
-            var childNode = nodes[i];
-            if (childNode.type === 'EmptyStatement')
+        var result;
+        for (var _i = 0, nodes_1 = nodes; _i < nodes_1.length; _i++) {
+            var childNode = nodes_1[_i];
+            if (childNode.type === "EmptyStatement") {
                 continue;
+            }
             result = walk(childNode);
             if (result instanceof ReturnValue) {
                 return result;
@@ -61,49 +62,50 @@ function evaluateAst(tree, context) {
     }
     // recursively evaluate the node of an AST
     function walk(node) {
-        if (!node)
+        if (!node) {
             return;
+        }
         switch (node.type) {
-            case 'Program': {
+            case "Program": {
                 return walkAll(node.body);
             }
-            case 'BlockStatement': {
+            case "BlockStatement": {
                 enterBlock();
                 var result = walkAll(node.body);
                 leaveBlock();
                 return result;
             }
-            case 'FunctionDeclaration': {
+            case "FunctionDeclaration": {
                 var params = node.params.map(getName);
                 var value = getFunction(node.body, params, blockContext);
                 return context[node.id.name] = value;
             }
-            case 'FunctionExpression': {
+            case "FunctionExpression": {
                 var params = node.params.map(getName);
                 return getFunction(node.body, params, blockContext);
             }
-            case 'ReturnStatement': {
+            case "ReturnStatement": {
                 var value = walk(node.argument);
-                return new ReturnValue('return', value);
+                return new ReturnValue("return", value);
             }
-            case 'BreakStatement': {
-                return new ReturnValue('break');
+            case "BreakStatement": {
+                return new ReturnValue("break");
             }
-            case 'ContinueStatement': {
-                return new ReturnValue('continue');
+            case "ContinueStatement": {
+                return new ReturnValue("continue");
             }
-            case 'ExpressionStatement': {
+            case "ExpressionStatement": {
                 return walk(node.expression);
             }
-            case 'AssignmentExpression': {
+            case "AssignmentExpression": {
                 return setValue(blockContext, node.left, node.right, node.operator);
             }
-            case 'UpdateExpression': {
+            case "UpdateExpression": {
                 return setValue(blockContext, node.argument, null, node.operator);
             }
-            case 'VariableDeclaration':
+            case "VariableDeclaration":
                 node.declarations.forEach(function (declaration) {
-                    var target = node.kind === 'let' ? blockContext : context;
+                    var target = node.kind === "let" ? blockContext : context;
                     if (declaration.init) {
                         target[declaration.id.name] = walk(declaration.init);
                     }
@@ -112,11 +114,11 @@ function evaluateAst(tree, context) {
                     }
                 });
                 break;
-            case 'SwitchStatement': {
+            case "SwitchStatement": {
                 var defaultHandler = null;
                 var matched = false;
                 var value = walk(node.discriminant);
-                var result = undefined;
+                var result = void 0;
                 enterBlock();
                 var i = 0;
                 while (result == null) {
@@ -130,8 +132,9 @@ function evaluateAst(tree, context) {
                         if (matched) {
                             var r = walkAll(node.cases[i].consequent);
                             if (r instanceof ReturnValue) { // break out
-                                if (r.type == 'break')
+                                if (r.type === "break") {
                                     break;
+                                }
                                 result = r;
                             }
                         }
@@ -150,7 +153,7 @@ function evaluateAst(tree, context) {
                 leaveBlock();
                 return result;
             }
-            case 'IfStatement': {
+            case "IfStatement": {
                 if (walk(node.test)) {
                     return walk(node.consequent);
                 }
@@ -158,65 +161,73 @@ function evaluateAst(tree, context) {
                     return walk(node.alternate);
                 }
             }
-            case 'ForStatement': {
-                var infinite_1 = new infinite_checker_1.InfiniteChecker(maxIterations);
-                var result = undefined;
+            case "ForStatement": {
+                var infinite = new infinite_checker_1.InfiniteChecker(maxIterations);
+                var result = void 0;
                 enterBlock(); // allow lets on delarations
                 for (walk(node.init); walk(node.test); walk(node.update)) {
                     var r = walk(node.body);
                     // handle early return, continue and break
                     if (r instanceof ReturnValue) {
-                        if (r.type == 'continue')
+                        if (r.type === "continue") {
                             continue;
-                        if (r.type == 'break')
+                        }
+                        if (r.type === "break") {
                             break;
+                        }
                         result = r;
                         break;
                     }
-                    infinite_1.check();
+                    infinite.check();
                 }
                 leaveBlock();
                 return result;
             }
-            case 'ForInStatement': {
-                var infinite_2 = new infinite_checker_1.InfiniteChecker(maxIterations);
-                var result = undefined;
+            case "ForInStatement": {
+                var infinite = new infinite_checker_1.InfiniteChecker(maxIterations);
+                var result = void 0;
                 var value = walk(node.right);
                 var property = node.left;
                 var target = context;
                 enterBlock();
-                if (property.type == 'VariableDeclaration') {
+                if (property.type === "VariableDeclaration") {
                     walk(property);
                     property = property.declarations[0].id;
-                    if (property.kind === 'let') {
+                    if (property.kind === "let") {
                         target = blockContext;
                     }
                 }
                 for (var key in value) {
-                    setValue(target, property, { type: 'Literal', value: key });
+                    if (!value.hasOwnProperty(key)) {
+                        continue;
+                    }
+                    setValue(target, property, { type: "Literal", value: key });
                     var r = walk(node.body);
                     // handle early return, continue and break
                     if (r instanceof ReturnValue) {
-                        if (r.type == 'continue')
+                        if (r.type === "continue") {
                             continue;
-                        if (r.type == 'break')
+                        }
+                        if (r.type === "break") {
                             break;
+                        }
                         result = r;
                         break;
                     }
-                    infinite_2.check();
+                    infinite.check();
                 }
                 leaveBlock();
                 return result;
             }
-            case 'WhileStatement':
+            case "WhileStatement": {
                 var infinite = new infinite_checker_1.InfiniteChecker(maxIterations);
                 while (walk(node.test)) {
                     walk(node.body);
                     infinite.check();
                 }
                 break;
-            case 'TryStatement':
+            }
+            case "TryStatement":
                 try {
                     walk(node.block);
                 }
@@ -235,135 +246,137 @@ function evaluateAst(tree, context) {
                     }
                 }
                 break;
-            case 'Literal':
+            case "Literal":
                 return node.value;
-            case 'UnaryExpression': {
-                if (node.operator === 'delete' && node.argument.type === 'MemberExpression') {
+            case "UnaryExpression": {
+                if (node.operator === "delete" && node.argument.type === "MemberExpression") {
                     var arg = node.argument;
                     var parent_1 = walk(arg.object);
-                    var prop_1 = arg.computed ? walk(arg.property) : arg.property.name;
-                    delete parent_1[prop_1];
+                    var prop = arg.computed ? walk(arg.property) : arg.property.name;
+                    delete parent_1[prop];
                     return true;
                 }
                 else {
-                    var val_1 = walk(node.argument);
+                    var val = walk(node.argument);
                     switch (node.operator) {
-                        case '+':
-                            return +val_1;
-                        case '-':
-                            return -val_1;
-                        case '~':
-                            return ~val_1;
-                        case '!':
-                            return !val_1;
-                        case 'typeof':
-                            return typeof val_1;
+                        case "+":
+                            return +val;
+                        case "-":
+                            return -val;
+                        case "~":
+                            return ~val;
+                        case "!":
+                            return !val;
+                        case "typeof":
+                            return typeof val;
                         default:
                             return unsupportedExpression(node);
                     }
                 }
             }
-            case 'ArrayExpression': {
-                var obj_1 = blockContext['Array']();
-                for (var i = 0; i < node.elements.length; i++) {
-                    obj_1.push(walk(node.elements[i]));
+            case "ArrayExpression": {
+                var obj = blockContext.Array();
+                for (var _i = 0, _a = node.elements; _i < _a.length; _i++) {
+                    var element = _a[_i];
+                    obj.push(walk(element));
                 }
-                return obj_1;
+                return obj;
             }
-            case 'ObjectExpression': {
-                var obj_2 = blockContext['Object']();
-                for (var i = 0; i < node.properties.length; i++) {
-                    var prop_2 = node.properties[i];
-                    var value = (prop_2.value === null) ? prop_2.value : walk(prop_2.value);
-                    obj_2[prop_2.key.value || prop_2.key.name] = value;
+            case "ObjectExpression": {
+                var obj = blockContext.Object();
+                for (var _b = 0, _c = node.properties; _b < _c.length; _b++) {
+                    var prop = _c[_b];
+                    var value = (prop.value === null) ? prop.value : walk(prop.value);
+                    obj[prop.key.value || prop.key.name] = value;
                 }
-                return obj_2;
+                return obj;
             }
-            case 'NewExpression': {
+            case "NewExpression": {
                 var args = node.arguments.map(function (arg) {
                     return walk(arg);
                 });
                 var target = walk(node.callee);
                 return primitives.applyNew(target, args);
             }
-            case 'BinaryExpression': {
+            case "BinaryExpression": {
                 var l = walk(node.left);
                 var r = walk(node.right);
                 switch (node.operator) {
-                    case '==':
+                    case "==":
                         return l === r;
-                    case '===':
+                    case "===":
                         return l === r;
-                    case '!=':
+                    case "!=":
+                        // tslint:disable-next-line:triple-equals
                         return l != r;
-                    case '!==':
+                    case "!==":
                         return l !== r;
-                    case '+':
+                    case "+":
                         return l + r;
-                    case '-':
+                    case "-":
                         return l - r;
-                    case '*':
+                    case "*":
                         return l * r;
-                    case '/':
+                    case "/":
                         return l / r;
-                    case '%':
+                    case "%":
                         return l % r;
-                    case '<':
+                    case "<":
                         return l < r;
-                    case '<=':
+                    case "<=":
                         return l <= r;
-                    case '>':
+                    case ">":
                         return l > r;
-                    case '>=':
+                    case ">=":
                         return l >= r;
-                    case '|':
+                    case "|":
                         return l | r;
-                    case '&':
+                    case "&":
                         return l & r;
-                    case '^':
+                    case "^":
                         return l ^ r;
-                    case 'instanceof':
+                    case "instanceof":
                         return l instanceof r;
                     default:
                         return unsupportedExpression(node);
                 }
             }
-            case 'LogicalExpression': {
+            case "LogicalExpression": {
                 switch (node.operator) {
-                    case '&&':
+                    case "&&":
                         return walk(node.left) && walk(node.right);
-                    case '||':
+                    case "||":
                         return walk(node.left) || walk(node.right);
                     default:
                         return unsupportedExpression(node);
                 }
             }
-            case 'ThisExpression': {
-                return blockContext['this'];
+            case "ThisExpression": {
+                return blockContext.this;
             }
-            case 'Identifier': {
-                if (node.name === 'undefined') {
+            case "Identifier": {
+                if (node.name === "undefined") {
                     return undefined;
                 }
                 else if (hasProperty(blockContext, node.name, primitives)) {
                     return finalValue(blockContext[node.name]);
                 }
                 else {
-                    throw new ReferenceError(node.name + ' is not defined');
+                    throw new ReferenceError(node.name + " is not defined");
                 }
             }
-            case 'CallExpression': {
+            case "CallExpression": {
                 var args = node.arguments.map(function (arg) {
                     return walk(arg);
                 });
                 var object = null;
                 var target = walk(node.callee);
-                if (node.callee.type === 'MemberExpression') {
+                if (node.callee.type === "MemberExpression") {
                     object = walk(node.callee.object);
                 }
                 return target.apply(object, args);
             }
-            case 'MemberExpression':
+            case "MemberExpression": {
                 var obj = walk(node.object);
                 var prop = void 0;
                 if (node.computed) {
@@ -374,10 +387,12 @@ function evaluateAst(tree, context) {
                 }
                 obj = primitives.getPropertyObject(obj, prop);
                 return checkValue(obj[prop]);
-            case 'ConditionalExpression':
+            }
+            case "ConditionalExpression": {
                 var val = walk(node.test);
                 return val ? walk(node.consequent) : walk(node.alternate);
-            case 'EmptyStatement':
+            }
+            case "EmptyStatement":
                 return;
             default:
                 return unsupportedExpression(node);
@@ -385,7 +400,7 @@ function evaluateAst(tree, context) {
     }
     // safely retrieve a value
     function checkValue(value) {
-        if (value === exports.Function) {
+        if (value === Function) {
             value = safeFunction;
         }
         return finalValue(value);
@@ -400,12 +415,12 @@ function evaluateAst(tree, context) {
     // set a value in the specified context if allowed
     function setValue(object, left, right, operator) {
         var name = null;
-        if (left.type === 'Identifier') {
+        if (left.type === "Identifier") {
             name = left.name;
             // handle parent context shadowing
             object = objectForKey(object, name, primitives);
         }
-        else if (left.type === 'MemberExpression') {
+        else if (left.type === "MemberExpression") {
             if (left.computed) {
                 name = walk(left.property);
             }
@@ -419,15 +434,15 @@ function evaluateAst(tree, context) {
             switch (operator) {
                 case undefined:
                     return object[name] = walk(right);
-                case '=':
+                case "=":
                     return object[name] = walk(right);
-                case '+=':
+                case "+=":
                     return object[name] += walk(right);
-                case '-=':
+                case "-=":
                     return object[name] -= walk(right);
-                case '++':
+                case "++":
                     return object[name]++;
-                case '--':
+                case "--":
                     return object[name]--;
             }
         }
@@ -436,7 +451,7 @@ function evaluateAst(tree, context) {
 // when an unsupported expression is encountered, throw an error
 function unsupportedExpression(node) {
     console.error(node);
-    var err = new Error('Unsupported expression: ' + node.type);
+    var err = new Error("Unsupported expression: " + node.type);
     err.node = node;
     throw err;
 }
@@ -471,7 +486,7 @@ function propertyIsEnumerable(object, key) {
 }
 // determine if we have write access to a property
 function canSetProperty(object, property, primitives) {
-    if (property === '__proto__' || primitives.isPrimitive(object)) {
+    if (property === "__proto__" || primitives.isPrimitive(object)) {
         return false;
     }
     else if (object != null) {
@@ -495,15 +510,15 @@ function canSetProperty(object, property, primitives) {
 function getFunction(body, params, parentContext) {
     return function () {
         var context = Object.create(parentContext);
-        // TODO: how to check for it?..
-        // if (this == global) {
-        //     context['this'] = null;
-        // } else {
-        context['this'] = this;
-        // }
+        if (this === global) {
+            context.this = null;
+        }
+        else {
+            context.this = this;
+        }
         // normalize arguments array
         var args = Array.prototype.slice.call(arguments);
-        context['arguments'] = arguments;
+        context.arguments = arguments;
         args.forEach(function (arg, idx) {
             var param = params[idx];
             if (param) {

@@ -15,7 +15,7 @@ export function safeEval(src, parentContext) {
 // create a 'Function' constructor for a controlled environment
 export function FunctionFactory(parentContext?) {
   const context = Object.create(parentContext || {});
-  return function Func() {
+  return function Function() {
     // normalize arguments array
     let args = Array.prototype.slice.call(arguments);
     let src = args.slice(-1)[0];
@@ -29,7 +29,7 @@ export function FunctionFactory(parentContext?) {
   };
 }
 
-export const Function = FunctionFactory();
+export const SafeFunction = FunctionFactory();
 
 // takes an AST or js source and returns an AST
 function prepareAst(src) {
@@ -198,7 +198,7 @@ function evaluateAst(tree, context) {
         }
 
         for (const key in value) {
-          if (!value.hasOwnPropertyKey(key)) {
+          if (!value.hasOwnProperty(key)) {
             continue;
           }
           setValue(target, property, {type: "Literal", value: key});

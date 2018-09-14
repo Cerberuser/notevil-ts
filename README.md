@@ -54,7 +54,7 @@ console.log(context.obj.y) // 300
 
 ### Creating functions
 ```js
-var func = safeEval.Function('param', 'return param * 100')
+var func = safeEval.SafeFunction('param', 'return param * 100')
 var result = func(2)
 console.log(result) // 200
 ```
